@@ -1,34 +1,69 @@
 /**
- * App.jsx — VaaniRakshak Step 2
- * Call state machine: IDLE → RINGING → IN_CALL → ENDED
+ * App.jsx — VaaniRakshak Step 5
+ * Analysis text panel reacts to risk bands. Alert banner at score > 70.
  */
 import { useState, useEffect, useRef } from 'react';
 import './App.css';
 import PhoneFrame from './PhoneFrame';
 import GaugeCircle from './GaugeCircle';
+import { useAudio } from './useAudio';
+import { useRiskScore } from './useRiskScore';
 
-// ── Call states ───────────────────────────────────────────
 export const CALL_STATE = {
-  IDLE: 'IDLE',
+  IDLE:    'IDLE',
   RINGING: 'RINGING',
   IN_CALL: 'IN_CALL',
-  ENDED: 'ENDED',
+  ENDED:   'ENDED',
 };
+
+// ── Score → band helpers ───────────────────────────────────
+function scoreBand(s) {
+  if (s > 85) return 3;
+  if (s > 60) return 2;
+  if (s > 30) return 1;
+  return 0;
+}
+
+const BAND_TEXT = [
+  'Voice patterns consistent with natural human speech.',
+  'Minor irregularities detected in speech pattern. Continuing analysis…',
+  'Spectral smoothing and unnatural prosody detected. Risk elevated.',
+  'High-confidence synthetic voice signature detected.',
+];
 
 export default function App() {
   const [callState, setCallState] = useState(CALL_STATE.IDLE);
-  const [elapsed, setElapsed] = useState(0); // seconds
+  const [elapsed,   setElapsed]   = useState(0);
   const timerRef = useRef(null);
 
-  // Start/stop call timer based on state
+  const isInCall = callState === CALL_STATE.IN_CALL;
+  const { analyser, micError }    = useAudio(isInCall);
+  const { riskScore, confidence } = useRiskScore(isInCall);
+
+  // Track which band we're in so text only changes on band crossing
+  const [displayBand, setDisplayBand] = useState(0);
+  const [textVisible, setTextVisible] = useState(true);
+
+  useEffect(() => {
+    if (!isInCall) { setDisplayBand(0); setTextVisible(true); return; }
+    const newBand = scoreBand(riskScore);
+    if (newBand !== displayBand) {
+      // Fade out → update → fade in
+      setTextVisible(false);
+      const t = setTimeout(() => {
+        setDisplayBand(newBand);
+        setTextVisible(true);
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [riskScore, isInCall]);
+
   useEffect(() => {
     if (callState === CALL_STATE.IN_CALL) {
       timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
     } else {
       clearInterval(timerRef.current);
-      if (callState === CALL_STATE.IDLE || callState === CALL_STATE.ENDED) {
-        setElapsed(0);
-      }
+      if (callState === CALL_STATE.IDLE || callState === CALL_STATE.ENDED) setElapsed(0);
     }
     return () => clearInterval(timerRef.current);
   }, [callState]);
@@ -36,13 +71,8 @@ export default function App() {
   const startCall  = () => setCallState(CALL_STATE.RINGING);
   const acceptCall = () => setCallState(CALL_STATE.IN_CALL);
   const reset      = () => setCallState(CALL_STATE.IDLE);
+  const playCloned = () => { if (!isInCall) return; console.log('[VaaniRakshak] playing cloned sample (stub)'); };
 
-  const playCloned = () => {
-    if (callState !== CALL_STATE.IN_CALL) return;
-    console.log('[VaaniRakshak] playing cloned sample (stub)');
-  };
-
-  // Status label below phone
   const statusLabel = {
     [CALL_STATE.IDLE]:    'Idle — no active call',
     [CALL_STATE.RINGING]: 'Ringing…',
@@ -50,9 +80,10 @@ export default function App() {
     [CALL_STATE.ENDED]:   'Call ended',
   }[callState];
 
+  const showAlert = isInCall && riskScore > 70;
+
   return (
     <div className="app-wrapper">
-      {/* ── Brand bar ───────────────────────────────── */}
       <header className="brand-bar">
         <div className="brand-logo">
           <div className="logo-icon">🛡️</div>
@@ -62,7 +93,6 @@ export default function App() {
         <span className="brand-meta">SIH 2026 · Problem SIH26104</span>
       </header>
 
-      {/* ── Section 1 ───────────────────────────────── */}
       <section className="section">
         <div className="section-header">
           <h2>Live Call Monitor</h2>
@@ -70,30 +100,33 @@ export default function App() {
         </div>
 
         <div className="s1-grid">
-          {/* Left */}
           <LeftPanel
             callState={callState}
+            micError={micError}
+            riskScore={riskScore}
+            displayBand={displayBand}
+            textVisible={textVisible}
             onStart={startCall}
             onClone={playCloned}
             onReset={reset}
           />
 
-          {/* Center */}
           <div className="center-col">
             <PhoneFrame
               callState={callState}
               elapsed={elapsed}
+              analyser={analyser}
+              showAlert={showAlert}
               onAccept={acceptCall}
               onDecline={reset}
             />
             <div className="call-status-indicator">
-              <div className={`status-dot${callState === CALL_STATE.IN_CALL ? ' active' : ''}`} />
+              <div className={`status-dot${isInCall ? ' active' : ''}`} />
               <span>{statusLabel}</span>
             </div>
           </div>
 
-          {/* Right */}
-          <RightPanel />
+          <RightPanel riskScore={riskScore} confidence={confidence} />
         </div>
       </section>
     </div>
@@ -101,62 +134,56 @@ export default function App() {
 }
 
 /* ── Left panel ──────────────────────────────────────────── */
-function LeftPanel({ callState, onStart, onClone, onReset }) {
-  const isIdle    = callState === CALL_STATE.IDLE;
-  const isInCall  = callState === CALL_STATE.IN_CALL;
-  const isEnded   = callState === CALL_STATE.ENDED;
+function LeftPanel({ callState, micError, riskScore, displayBand, textVisible, onStart, onClone, onReset }) {
+  const isIdle   = callState === CALL_STATE.IDLE;
+  const isInCall = callState === CALL_STATE.IN_CALL;
+  const isEnded  = callState === CALL_STATE.ENDED;
+
+  let analysisText;
+  if (micError)        analysisText = micError;
+  else if (isIdle)     analysisText = 'Waiting for call to start…';
+  else if (isEnded)    analysisText = 'Call ended. Analysis complete.';
+  else if (!isInCall)  analysisText = 'Connecting…';
+  else                 analysisText = BAND_TEXT[displayBand];
 
   return (
     <div className="left-panel">
       <span className="panel-label">Controls</span>
 
-      <button
-        className="ctrl-btn start"
-        onClick={onStart}
-        disabled={!isIdle}
-      >
-        📞 Start Call
-      </button>
-
-      <button
-        className="ctrl-btn clone"
-        onClick={onClone}
-        disabled={!isInCall}
-      >
-        🎭 Play Cloned Sample
-      </button>
-
-      <button
-        className="ctrl-btn reset"
-        onClick={onReset}
-        disabled={isIdle}
-      >
-        ↺ Reset
-      </button>
+      <button className="ctrl-btn start" onClick={onStart} disabled={!isIdle}>📞 Start Call</button>
+      <button className="ctrl-btn clone" onClick={onClone} disabled={!isInCall}>🎭 Play Cloned Sample</button>
+      <button className="ctrl-btn reset" onClick={onReset} disabled={isIdle}>↺ Reset</button>
 
       <div className="analysis-panel">
         <div className="panel-title">Live Analysis</div>
-        <p className="analysis-text">
-          {isIdle
-            ? 'Waiting for call to start…'
-            : isInCall
-            ? 'Monitoring live audio stream…'
-            : isEnded
-            ? 'Call ended. Analysis complete.'
-            : 'Connecting…'}
+        {/* Band indicator dots */}
+        {isInCall && (
+          <div className="band-dots">
+            {BAND_TEXT.map((_, i) => (
+              <div key={i} className={`band-dot band-dot-${i}${displayBand >= i ? ' active' : ''}`} />
+            ))}
+          </div>
+        )}
+        <p className={`analysis-text${micError ? ' mic-error' : ''}${isInCall ? (textVisible ? ' text-visible' : ' text-hidden') : ''}`}>
+          {analysisText}
         </p>
+        {isInCall && riskScore > 0 && (
+          <div className={`score-badge score-badge-${scoreBand(riskScore)}`}>
+            Score: {riskScore}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 /* ── Right panel ─────────────────────────────────────────── */
-function RightPanel() {
+function RightPanel({ riskScore, confidence }) {
   return (
     <div className="right-panel">
       <span className="panel-label">Risk Gauges</span>
-      <GaugeCircle label="Risk Score"  sublabel="Voice impersonation likelihood" value={0} />
-      <GaugeCircle label="Confidence"  sublabel="Model certainty"                value={0} />
+      <GaugeCircle label="Risk Score"  sublabel="Voice impersonation likelihood" value={riskScore} />
+      <GaugeCircle label="Confidence"  sublabel="Model certainty"                value={confidence} />
     </div>
   );
 }
