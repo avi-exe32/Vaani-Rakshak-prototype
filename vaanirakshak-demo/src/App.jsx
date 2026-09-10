@@ -14,6 +14,9 @@ import IndiaMap from './IndiaMap';
 import RiskOverTimeChart from './RiskOverTimeChart';
 import WaveformComparison from './WaveformComparison';
 import ArchitecturePipeline from './ArchitecturePipeline';
+import DetectionLanes from './DetectionLanes';
+import SystemStatus from './SystemStatus';
+import SessionFooter from './SessionFooter';
 import { ALERT_THRESHOLD } from './constants';
 
 export const CALL_STATE = {
@@ -70,6 +73,22 @@ export default function App() {
   // Active scores: override wins when clip is playing
   const riskScore  = scoreOverride ? scoreOverride.riskScore  : liveRisk;
   const confidence = scoreOverride ? scoreOverride.confidence : liveConf;
+
+  // Session call tracking for status footer bar
+  const [completedCalls, setCompletedCalls] = useState(0);
+  const [lastCallTimestamp, setLastCallTimestamp] = useState(null);
+  const wasInCallRef = useRef(false);
+
+  useEffect(() => {
+    if (callState === CALL_STATE.IN_CALL) {
+      wasInCallRef.current = true;
+    } else if (wasInCallRef.current && (callState === CALL_STATE.ENDED || callState === CALL_STATE.IDLE)) {
+      setCompletedCalls(c => c + 1);
+      const now = new Date();
+      setLastCallTimestamp(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      wasInCallRef.current = false;
+    }
+  }, [callState]);
 
   // Track risk score over time while in call
   useEffect(() => {
@@ -177,6 +196,9 @@ export default function App() {
               <div className={`status-dot${isInCall ? ' active' : ''}`} />
               <span>{statusLabel}</span>
             </div>
+            <p className="phone-demo-caption">
+              Simulates an incoming VoIP/telecom call and detects AI-cloned voice impersonation in real time.
+            </p>
           </div>
 
           <RightPanel riskScore={riskScore} confidence={confidence} />
@@ -217,6 +239,12 @@ export default function App() {
         rollingLatency={rollingLatency}
         pulseActive={pulseActive}
         cloneIsPlaying={cloneIsPlaying}
+      />
+
+      {/* ── Session Status Footer Bar ───────────────── */}
+      <SessionFooter
+        callCount={completedCalls}
+        lastCallTime={lastCallTimestamp}
       />
     </div>
   );
@@ -262,6 +290,8 @@ function LeftPanel({ callState, micError, riskScore, displayBand, textVisible, c
           </div>
         )}
       </div>
+
+      <DetectionLanes isInCall={isInCall} riskScore={riskScore} />
     </div>
   );
 }
@@ -272,6 +302,7 @@ function RightPanel({ riskScore, confidence }) {
       <span className="panel-label">Risk Gauges</span>
       <GaugeCircle label="Risk Score"  sublabel="Voice impersonation likelihood" value={riskScore} />
       <GaugeCircle label="Confidence"  sublabel="Model certainty"                value={confidence} />
+      <SystemStatus />
     </div>
   );
 }
