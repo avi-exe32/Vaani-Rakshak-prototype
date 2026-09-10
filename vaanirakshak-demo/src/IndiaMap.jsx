@@ -5,93 +5,79 @@
  * Overlapping bubbles create natural intensity clusters (Mewat/NCR, Jamtara, Mumbai).
  */
 import { useState, useEffect } from 'react';
-import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
+import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
 
 // ── Baseline fraud risk per state (0-100) ─────────────────
 const BASELINE = {
-  'Rajasthan':          82,
-  'Uttar Pradesh':      78,
-  'Haryana':            75,
-  'Delhi':              71,
-  'Jharkhand':          68,
-  'Bihar':              65,
-  'West Bengal':        60,
-  'Maharashtra':        58,
-  'Andhra Pradesh':     55,
-  'Madhya Pradesh':     54,
-  'Telangana':          52,
-  'Karnataka':          48,
-  'Gujarat':            44,
-  'Tamil Nadu':         43,
-  'Punjab':             45,
-  'Odisha':             40,
-  'Orissa':             40,
-  'Assam':              38,
-  'Chhattisgarh':       42,
-  'Uttarakhand':        35,
-  'Uttaranchal':        35,
-  'Himachal Pradesh':   28,
-  'Kerala':             32,
-  'Goa':                18,
-  'Jammu and Kashmir':  36,
-  'Manipur':            29,
-  'Meghalaya':          25,
-  'Tripura':            30,
-  'Nagaland':           22,
-  'Mizoram':            20,
-  'Arunachal Pradesh':  18,
-  'Sikkim':             15,
-  'Ladakh':             30,
-  'Chandigarh':         50,
-  'Puducherry':         26,
+  'Rajasthan': 82,
+  'Uttar Pradesh': 78,
+  'Haryana': 75,
+  'Delhi': 71,
+  'Jharkhand': 68,
+  'Bihar': 65,
+  'West Bengal': 60,
+  'Maharashtra': 58,
+  'Andhra Pradesh': 55,
+  'Madhya Pradesh': 54,
+  'Telangana': 52,
+  'Karnataka': 48,
+  'Gujarat': 44,
+  'Tamil Nadu': 43,
+  'Punjab': 45,
+  'Odisha': 40,
+  'Orissa': 40,
+  'Assam': 38,
+  'Chhattisgarh': 42,
+  'Uttarakhand': 35,
+  'Uttaranchal': 35,
+  'Himachal Pradesh': 28,
+  'Kerala': 32,
+  'Goa': 18,
+  'Jammu and Kashmir': 36,
+  'Manipur': 29,
+  'Meghalaya': 25,
+  'Tripura': 30,
+  'Nagaland': 22,
+  'Mizoram': 20,
+  'Arunachal Pradesh': 18,
+  'Sikkim': 15,
+  'Ladakh': 30,
+  'Chandigarh': 50,
+  'Puducherry': 26,
   'Andaman and Nicobar Islands': 16,
   'Dadra and Nagar Haveli': 24,
-  'Daman and Diu':      24,
-  'Lakshadweep':        14,
+  'Daman and Diu': 24,
+  'Lakshadweep': 14,
 };
 
 // Exact projected centroids on 800x600 canvas (Mercator center [82.5, 21.5] scale 950)
 const CENTROIDS = {
-  'Rajasthan': [257, 207],
-  'Uttar Pradesh': [368, 201],
-  'Haryana': [298, 158],
-  'Delhi': [311, 169],
-  'Jharkhand': [451, 261],
-  'Bihar': [452, 224],
-  'West Bengal': [491, 257],
-  'Maharashtra': [294, 336],
-  'Andhra Pradesh': [358, 400],
-  'Madhya Pradesh': [330, 263],
-  'Telangana': [342, 365],
-  'Karnataka': [295, 418],
-  'Gujarat': [219, 279],
-  'Tamil Nadu': [332, 481],
-  'Punjab': [283, 127],
-  'Odisha': [432, 317],
-  'Orissa': [432, 317],
-  'Assam': [571, 212],
-  'Chhattisgarh': [393, 304],
-  'Uttarakhand': [345, 140],
-  'Uttaranchal': [345, 140],
-  'Himachal Pradesh': [313, 106],
-  'Kerala': [299, 491],
-  'Goa': [260, 407],
-  'Jammu and Kashmir': [273, 71],
-  'Manipur': [589, 242],
-  'Meghalaya': [545, 227],
-  'Mizoram': [571, 268],
-  'Nagaland': [599, 217],
-  'Sikkim': [499, 189],
-  'Tripura': [553, 260],
-  'Arunachal Pradesh': [602, 181],
-  'Ladakh': [305, 46],
-  'Chandigarh': [305, 129],
-  'Puducherry': [353, 472],
-  'Andaman and Nicobar Islands': [573, 475],
-  'Dadra and Nagar Haveli': [244, 323],
-  'Daman and Diu': [240, 319],
-  'Lakshadweep': [236, 470],
+  'Rajasthan': [74.2179, 27.0238],
+  'Uttar Pradesh': [80.9462, 26.8467],
+  'Haryana': [76.0856, 29.0588],
+  'Delhi': [77.1025, 28.7041],
+  'Jharkhand': [85.2799, 23.6102],
+  'Bihar': [85.3131, 25.0961],
+  'West Bengal': [87.8550, 22.9868],
+  'Maharashtra': [75.7139, 19.7515],
+  'Andhra Pradesh': [79.7400, 15.9129],
+  'Madhya Pradesh': [78.6569, 22.9734],
+  'Telangana': [79.0193, 18.1124],
+  'Karnataka': [75.7139, 15.3173],
+  'Gujarat': [71.1924, 22.2587],
+  'Tamil Nadu': [78.6569, 11.1271],
+  'Punjab': [75.3412, 31.1471],
+  'Odisha': [84.8034, 20.9517],
+  'Assam': [92.9376, 26.2006],
+  'Chhattisgarh': [81.8661, 21.2787],
+  'Uttarakhand': [79.0193, 30.0668],
+  'Himachal Pradesh': [77.1734, 31.1048],
+  'Kerala': [76.2711, 10.8505],
+  'Goa': [74.1240, 15.2993],
+  'Jammu and Kashmir': [74.7973, 33.7782],
+  'Ladakh': [77.5771, 34.1526],
 };
+
 
 function getRiskCategory(score) {
   if (score >= 75) return { label: 'CRITICAL HOTSPOT', color: '#ef4444', ringColor: 'rgba(239, 68, 68, 0.75)', fillColor: 'rgba(239, 68, 68, 0.22)' };
@@ -103,12 +89,12 @@ function getRiskCategory(score) {
 
 // Calculate radius from score (8px for min score, up to 48px for 85+)
 function scoreToRadius(score) {
-  return Math.max(9, Math.round(9 + (score / 100) * 38));
+  return Math.max(9, Math.round(15 + (score / 100) * 40));
 }
 
 export default function IndiaMap() {
   const [geoData, setGeoData] = useState(null);
-  const [scores, setScores]   = useState({ ...BASELINE });
+  const [scores, setScores] = useState({ ...BASELINE });
   const [tooltip, setTooltip] = useState(null);
   const [hoveredState, setHoveredState] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -134,7 +120,7 @@ export default function IndiaMap() {
         const next = { ...prev };
         for (const state in BASELINE) {
           const base = BASELINE[state];
-          const cur  = prev[state] ?? base;
+          const cur = prev[state] ?? base;
           const diff = base - cur;
           const step = diff * 0.25 + (Math.random() - 0.5) * 3;
           next[state] = Math.max(5, Math.min(95, cur + step));
@@ -173,7 +159,7 @@ export default function IndiaMap() {
       ) : geoData ? (
         <ComposableMap
           projection="geoMercator"
-          projectionConfig={{ center: [82.5, 21.5], scale: 950 }}
+          projectionConfig={{ center: [82.5, 21.5], scale: 1150 }}
           style={{ width: '100%', height: '100%' }}
         >
           {/* 1. Base Map Outline & State Boundaries */}
@@ -192,7 +178,7 @@ export default function IndiaMap() {
                     strokeWidth={isHovered ? 1.2 : 0.5}
                     style={{
                       default: { outline: 'none', transition: 'all 0.2s ease' },
-                      hover:   { outline: 'none', cursor: 'pointer' },
+                      hover: { outline: 'none', cursor: 'pointer' },
                       pressed: { outline: 'none' },
                     }}
                     onMouseMove={e => triggerHover(name, e)}
@@ -205,55 +191,40 @@ export default function IndiaMap() {
 
           {/* 2. Hotspot Density Bubbles (Exact COVID-19 India style) */}
           <g className="hotspot-bubbles-group">
-            {Object.entries(CENTROIDS).map(([stateName, [cx, cy]]) => {
+            {Object.entries(CENTROIDS).map(([stateName, coords]) => {
               const score = Math.round(scores[stateName] ?? 30);
               const radius = scoreToRadius(score);
               const cat = getRiskCategory(score);
               const isHovered = hoveredState === stateName;
 
               return (
-                <g
+                <Marker
                   key={`bubble-${stateName}`}
-                  className="state-hotspot-group"
+                  coordinates={coords} /* 👈 Lock bubble dynamically to [longitude, latitude] */
                   onMouseMove={e => triggerHover(stateName, e)}
                   onMouseLeave={clearHover}
-                  style={{ cursor: 'pointer' }}
+                  style={{ default: { cursor: 'pointer' } }}
                 >
-                  {/* Outer Translucent Risk Bubble */}
+                  {/* Outer Bubble */}
                   <circle
-                    cx={cx}
-                    cy={cy}
+                    cx={0}
+                    cy={0}
                     r={radius}
                     fill={isHovered ? 'rgba(239, 68, 68, 0.38)' : cat.fillColor}
                     stroke={isHovered ? '#fff' : cat.ringColor}
                     strokeWidth={isHovered ? 1.8 : 1.1}
                     style={{ transition: 'all 0.6s ease' }}
                   />
-
-                  {/* Concentric Secondary Ring for High/Critical Hotspots (>=65) */}
-                  {score >= 65 && (
-                    <circle
-                      cx={cx}
-                      cy={cy}
-                      r={Math.round(radius * 0.55)}
-                      fill="none"
-                      stroke={cat.ringColor}
-                      strokeWidth={0.9}
-                      strokeDasharray="3 2"
-                      opacity={0.85}
-                    />
-                  )}
-
-                  {/* Epicenter Center Dot */}
+                  {/* Center Dot */}
                   <circle
-                    cx={cx}
-                    cy={cy}
+                    cx={0}
+                    cy={0}
                     r={score >= 70 ? 3.5 : 2.5}
                     fill={cat.color}
                     stroke="#0b111e"
                     strokeWidth={1}
                   />
-                </g>
+                </Marker>
               );
             })}
           </g>

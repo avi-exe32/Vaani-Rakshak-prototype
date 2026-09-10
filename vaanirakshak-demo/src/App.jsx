@@ -187,9 +187,6 @@ export default function App() {
           {/* Left: India map */}
           <div className="s2-map-col">
             <IndiaMap />
-            <p className="map-caption">
-              Live risk index — simulated fluctuation around published 2025 fraud data (I4C/NHRC)
-            </p>
           </div>
 
           {/* Right: Step 9 charts */}
