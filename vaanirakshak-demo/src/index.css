@@ -1,0 +1,43 @@
+/* ===== VaaniRakshak — Global Styles ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-primary:    #0a0e14;
+  --bg-secondary:  #111827;
+  --bg-panel:      #131b2b;
+  --bg-card:       #1a2235;
+  --border:        #1e2d45;
+  --accent-green:  #22c55e;
+  --accent-red:    #ef4444;
+  --accent-yellow: #eab308;
+  --text-primary:  #e2e8f0;
+  --text-muted:    #64748b;
+  --text-dim:      #94a3b8;
+  font-size: 14px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
