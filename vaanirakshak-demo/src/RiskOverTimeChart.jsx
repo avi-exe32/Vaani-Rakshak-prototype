@@ -4,6 +4,7 @@
  * Persists data after call ends until Reset is pressed.
  */
 import { useMemo } from 'react';
+import { ALERT_THRESHOLD } from './constants';
 
 export default function RiskOverTimeChart({ history = [], isLive = false }) {
   const W = 400;
@@ -36,7 +37,7 @@ export default function RiskOverTimeChart({ history = [], isLive = false }) {
     return `${pathD} L ${lastX.toFixed(1)} ${baseY} L ${firstX.toFixed(1)} ${baseY} Z`;
   }, [pathD, points, innerH, pad.top]);
 
-  const thresholdY = pad.top + innerH - (70 / 100) * innerH;
+  const thresholdY = pad.top + innerH - (ALERT_THRESHOLD / 100) * innerH;
 
   return (
     <div className="chart-card">
@@ -45,7 +46,7 @@ export default function RiskOverTimeChart({ history = [], isLive = false }) {
           <span className="chart-title">Risk Score Over Time</span>
           {isLive && <span className="live-pill">LIVE</span>}
         </div>
-        <span className="chart-meta">Threshold: 70 (Suspicious)</span>
+        <span className="chart-meta">Threshold: {ALERT_THRESHOLD} (Suspicious)</span>
       </div>
 
       <div className="chart-svg-wrap">
@@ -80,7 +81,7 @@ export default function RiskOverTimeChart({ history = [], isLive = false }) {
             strokeDasharray="4 3"
             opacity="0.7"
           />
-          <text x={W - pad.right} y={thresholdY - 4} fill="#ef4444" fontSize="8" textAnchor="end" opacity="0.8">Alert (70)</text>
+          <text x={W - pad.right} y={thresholdY - 4} fill="#ef4444" fontSize="8" textAnchor="end" opacity="0.8">Alert ({ALERT_THRESHOLD})</text>
 
           {/* Fill Area */}
           {areaD && <path d={areaD} fill="url(#riskGradient)" />}
@@ -100,7 +101,7 @@ export default function RiskOverTimeChart({ history = [], isLive = false }) {
               cx={points[points.length - 1].x}
               cy={points[points.length - 1].y}
               r="4"
-              fill={points[points.length - 1].score > 70 ? '#ef4444' : '#22c55e'}
+              fill={points[points.length - 1].score > ALERT_THRESHOLD ? '#ef4444' : '#22c55e'}
               stroke="#fff"
               strokeWidth="1.5"
             />

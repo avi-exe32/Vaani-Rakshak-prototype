@@ -13,6 +13,8 @@ import { useClonedSample } from './useClonedSample';
 import IndiaMap from './IndiaMap';
 import RiskOverTimeChart from './RiskOverTimeChart';
 import WaveformComparison from './WaveformComparison';
+import ArchitecturePipeline from './ArchitecturePipeline';
+import { ALERT_THRESHOLD } from './constants';
 
 export const CALL_STATE = {
   IDLE:    'IDLE',
@@ -42,7 +44,7 @@ export default function App() {
 
   const isInCall = callState === CALL_STATE.IN_CALL;
   const { analyser, micError }    = useAudio(isInCall);
-  const { riskScore: liveRisk, confidence: liveConf } = useRiskScore(isInCall);
+  const { riskScore: liveRisk, confidence: liveConf, latency, rollingLatency, pulseActive } = useRiskScore(isInCall);
 
   // Score override from cloned sample — null = use live
   const [scoreOverride, setScoreOverride] = useState(null);
@@ -125,7 +127,7 @@ export default function App() {
     [CALL_STATE.ENDED]:   'Call ended',
   }[callState];
 
-  const showAlert = isInCall && riskScore > 70;
+  const showAlert = isInCall && riskScore > ALERT_THRESHOLD;
 
   return (
     <div className="app-wrapper">
@@ -201,6 +203,16 @@ export default function App() {
           </div>
         </div>
       </section>
+
+      {/* ── Section 3: Animated Architecture Pipeline ── */}
+      <ArchitecturePipeline
+        isInCall={isInCall}
+        riskScore={riskScore}
+        latency={latency}
+        rollingLatency={rollingLatency}
+        pulseActive={pulseActive}
+        cloneIsPlaying={cloneIsPlaying}
+      />
     </div>
   );
 }
