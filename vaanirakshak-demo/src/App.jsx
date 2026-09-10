@@ -137,10 +137,15 @@ export default function App() {
           <h1>Vaani<span>Rakshak</span></h1>
           <span className="brand-badge">AI DEMO</span>
         </div>
+        <nav className="brand-nav">
+          <a href="#live-monitor" className="nav-link">Live Call</a>
+          <a href="#fraud-map" className="nav-link">Threat Map</a>
+          <a href="#architecture" className="nav-link">Architecture</a>
+        </nav>
         <span className="brand-meta">SIH 2026 · Problem SIH26104</span>
       </header>
 
-      <section className="section">
+      <section id="live-monitor" className="section">
         <div className="section-header">
           <h2>Live Call Monitor</h2>
           <div className="section-divider" />
@@ -179,7 +184,7 @@ export default function App() {
       </section>
 
       {/* ── Section 2 ───────────────────────────────── */}
-      <section className="section section-2">
+      <section id="fraud-map" className="section section-2">
         <div className="section-header">
           <h2>Fraud Risk Intelligence</h2>
           <div className="section-divider" />

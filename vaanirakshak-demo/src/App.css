@@ -87,6 +87,32 @@
   letter-spacing: 0.04em;
 }
 
+.brand-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(10, 15, 26, 0.6);
+  padding: 4px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.nav-link {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-decoration: none;
+  padding: 5px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  letter-spacing: 0.02em;
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .brand-meta {
   font-size: 0.72rem;
   color: var(--text-muted);

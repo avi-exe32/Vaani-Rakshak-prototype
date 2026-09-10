@@ -123,7 +123,7 @@ export default function ArchitecturePipeline({
   const activeNode = NODES.find(n => n.id === selectedNode) || NODES[4];
 
   return (
-    <section className="section section-3">
+    <section id="architecture" className="section section-3">
       <div className="section-header">
         <div className="section-header-left">
           <h2>End-to-End Detection Architecture</h2>
