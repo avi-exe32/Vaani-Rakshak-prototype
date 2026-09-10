@@ -8,6 +8,7 @@
  * - Click any node to open an interactive technical inspector with defensible live measurements & shared constants
  */
 import { useState } from 'react';
+import StatCounters from './StatCounters';
 import {
   ALERT_THRESHOLD,
   SAMPLE_RATE,
@@ -214,6 +215,9 @@ export default function ArchitecturePipeline({
             })}
           </div>
         </div>
+
+        {/* Step 11: Real Cited Stat Counters */}
+        <StatCounters />
       </div>
     </section>
   );
