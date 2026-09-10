@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 const SCORES_URL = '/cloned_scores.json';
-const AUDIO_URL  = '/cloned_sample.mp3'; // drop your real clip here
+const AUDIO_URL  = '/audio/cloned_sample.mp3';
 
 export function useClonedSample({ isInCall, onScoreOverride, onScoreClear }) {
   const [isPlaying,  setIsPlaying]  = useState(false);
