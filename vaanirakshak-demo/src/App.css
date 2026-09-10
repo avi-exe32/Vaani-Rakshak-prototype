@@ -666,3 +666,109 @@
 }
 .verify-btn:hover { background: rgba(255,255,255,0.35); }
 
+/* ── Section 2: Fraud Risk Intelligence ─────────────────── */
+
+.section-2 {
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--bg-primary) 0%, rgba(10,14,20,0.95) 100%);
+}
+
+.s2-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  flex: 1;
+  min-height: 520px;
+}
+
+/* Map column */
+.s2-map-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.india-map-wrap {
+  flex: 1;
+  position: relative;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  min-height: 460px;
+}
+
+.map-caption {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
+  padding: 0 8px;
+}
+
+/* Tooltip */
+.map-tooltip {
+  position: fixed;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: none;
+  z-index: 200;
+  font-size: 0.72rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+.map-tooltip strong { color: var(--text-primary); }
+.map-tooltip span   { color: var(--text-dim); }
+
+/* Legend */
+.map-legend {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(10,14,20,0.8);
+  border-radius: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+}
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+/* Charts column */
+.s2-charts-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chart-placeholder {
+  flex: 1;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.chart-placeholder span { font-size: 2rem; opacity: 0.4; }
+.chart-placeholder small { font-size: 0.65rem; color: var(--text-muted); opacity: 0.7; }

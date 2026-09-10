@@ -10,6 +10,7 @@ import GaugeCircle from './GaugeCircle';
 import { useAudio } from './useAudio';
 import { useRiskScore } from './useRiskScore';
 import { useClonedSample } from './useClonedSample';
+import IndiaMap from './IndiaMap';
 
 export const CALL_STATE = {
   IDLE:    'IDLE',
@@ -142,6 +143,38 @@ export default function App() {
           </div>
 
           <RightPanel riskScore={riskScore} confidence={confidence} />
+        </div>
+      </section>
+
+      {/* ── Section 2 ───────────────────────────────── */}
+      <section className="section section-2">
+        <div className="section-header">
+          <h2>Fraud Risk Intelligence</h2>
+          <div className="section-divider" />
+        </div>
+
+        <div className="s2-grid">
+          {/* Left: India map */}
+          <div className="s2-map-col">
+            <IndiaMap />
+            <p className="map-caption">
+              Live risk index — simulated fluctuation around published 2025 fraud data (I4C/NHRC)
+            </p>
+          </div>
+
+          {/* Right: placeholder for Step 9 charts */}
+          <div className="s2-charts-col">
+            <div className="chart-placeholder">
+              <span>📈</span>
+              <p>Risk-over-time graph</p>
+              <small>Populates during active call</small>
+            </div>
+            <div className="chart-placeholder">
+              <span>〰️</span>
+              <p>Waveform comparison</p>
+              <small>Available after cloned sample plays</small>
+            </div>
+          </div>
         </div>
       </section>
     </div>

@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "d3-scale": "^4.0.2",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-simple-maps": "^5.0.3"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
