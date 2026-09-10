@@ -6,8 +6,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
 
-const GEO_URL =
-  'https://raw.githubusercontent.com/deldersveld/topojson/master/countries/india/india-states.json';
+const GEO_URL = '/india-states.json';
 
 // ── Baseline fraud risk per state (0-100) ─────────────────
 // Source: I4C / NHRC 2025 cyber-fraud data (approximated)
@@ -28,9 +27,11 @@ const BASELINE = {
   'Tamil Nadu':         43,
   'Punjab':             45,
   'Odisha':             40,
+  'Orissa':             40,
   'Assam':              38,
   'Chhattisgarh':       42,
   'Uttarakhand':        35,
+  'Uttaranchal':        35,
   'Himachal Pradesh':   28,
   'Kerala':             32,
   'Goa':                18,
@@ -42,6 +43,13 @@ const BASELINE = {
   'Mizoram':            20,
   'Arunachal Pradesh':  18,
   'Sikkim':             15,
+  'Ladakh':             30,
+  'Chandigarh':         50,
+  'Puducherry':         26,
+  'Andaman and Nicobar Islands': 16,
+  'Dadra and Nagar Haveli': 24,
+  'Daman and Diu':      24,
+  'Lakshadweep':        14,
 };
 
 function riskColor(value) {
@@ -75,7 +83,7 @@ export default function IndiaMap() {
   }, []);
 
   function handleMove(geo, evt) {
-    const name  = geo.properties.NAME_1 || geo.properties.name || 'Unknown';
+    const name  = geo.properties.st_nm || geo.properties.ST_NM || geo.properties.NAME_1 || geo.properties.name || 'Unknown';
     const value = Math.round(scores[name] ?? 30);
     setTooltip({ name, value, x: evt.clientX, y: evt.clientY });
   }
@@ -84,14 +92,14 @@ export default function IndiaMap() {
     <div className="india-map-wrap">
       <ComposableMap
         projection="geoMercator"
-        projectionConfig={{ center: [82, 22], scale: 900 }}
+        projectionConfig={{ center: [80, 22], scale: 1000 }}
         style={{ width: '100%', height: '100%' }}
       >
-        <ZoomableGroup>
+        <ZoomableGroup zoom={1}>
           <Geographies geography={GEO_URL}>
             {({ geographies }) =>
               geographies.map(geo => {
-                const name  = geo.properties.NAME_1 || geo.properties.name || '';
+                const name  = geo.properties.st_nm || geo.properties.ST_NM || geo.properties.NAME_1 || geo.properties.name || '';
                 const value = scores[name] ?? 30;
                 return (
                   <Geography
