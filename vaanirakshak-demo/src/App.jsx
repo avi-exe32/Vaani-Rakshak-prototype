@@ -1,13 +1,15 @@
 /**
- * App.jsx — VaaniRakshak Step 5
- * Analysis text panel reacts to risk bands. Alert banner at score > 70.
+ * App.jsx — VaaniRakshak Step 6
+ * "Play Cloned Sample" plays audio + steps through precomputed score sequence.
+ * Score override takes priority over live /analyze polling while clip plays.
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import PhoneFrame from './PhoneFrame';
 import GaugeCircle from './GaugeCircle';
 import { useAudio } from './useAudio';
 import { useRiskScore } from './useRiskScore';
+import { useClonedSample } from './useClonedSample';
 
 export const CALL_STATE = {
   IDLE:    'IDLE',
@@ -16,7 +18,6 @@ export const CALL_STATE = {
   ENDED:   'ENDED',
 };
 
-// ── Score → band helpers ───────────────────────────────────
 function scoreBand(s) {
   if (s > 85) return 3;
   if (s > 60) return 2;
@@ -38,26 +39,40 @@ export default function App() {
 
   const isInCall = callState === CALL_STATE.IN_CALL;
   const { analyser, micError }    = useAudio(isInCall);
-  const { riskScore, confidence } = useRiskScore(isInCall);
+  const { riskScore: liveRisk, confidence: liveConf } = useRiskScore(isInCall);
 
-  // Track which band we're in so text only changes on band crossing
+  // Score override from cloned sample — null = use live
+  const [scoreOverride, setScoreOverride] = useState(null);
+
+  const handleScoreOverride = useCallback((v) => setScoreOverride(v), []);
+  const handleScoreClear    = useCallback(() => setScoreOverride(null), []);
+
+  const { play: playCloned, isPlaying: cloneIsPlaying } = useClonedSample({
+    isInCall,
+    onScoreOverride: handleScoreOverride,
+    onScoreClear:    handleScoreClear,
+  });
+
+  // Active scores: override wins when clip is playing
+  const riskScore  = scoreOverride ? scoreOverride.riskScore  : liveRisk;
+  const confidence = scoreOverride ? scoreOverride.confidence : liveConf;
+
+  // Band / text fade logic
   const [displayBand, setDisplayBand] = useState(0);
   const [textVisible, setTextVisible] = useState(true);
 
   useEffect(() => {
     if (!isInCall) { setDisplayBand(0); setTextVisible(true); return; }
     const newBand = scoreBand(riskScore);
-    if (newBand !== displayBand) {
-      // Fade out → update → fade in
+    setDisplayBand(prev => {
+      if (newBand === prev) return prev;
       setTextVisible(false);
-      const t = setTimeout(() => {
-        setDisplayBand(newBand);
-        setTextVisible(true);
-      }, 300);
-      return () => clearTimeout(t);
-    }
+      setTimeout(() => { setDisplayBand(newBand); setTextVisible(true); }, 300);
+      return prev;
+    });
   }, [riskScore, isInCall]);
 
+  // Call timer
   useEffect(() => {
     if (callState === CALL_STATE.IN_CALL) {
       timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
@@ -70,13 +85,12 @@ export default function App() {
 
   const startCall  = () => setCallState(CALL_STATE.RINGING);
   const acceptCall = () => setCallState(CALL_STATE.IN_CALL);
-  const reset      = () => setCallState(CALL_STATE.IDLE);
-  const playCloned = () => { if (!isInCall) return; console.log('[VaaniRakshak] playing cloned sample (stub)'); };
+  const reset      = () => { setScoreOverride(null); setCallState(CALL_STATE.IDLE); };
 
   const statusLabel = {
     [CALL_STATE.IDLE]:    'Idle — no active call',
     [CALL_STATE.RINGING]: 'Ringing…',
-    [CALL_STATE.IN_CALL]: 'In call',
+    [CALL_STATE.IN_CALL]: cloneIsPlaying ? '🎭 Playing cloned sample…' : 'In call',
     [CALL_STATE.ENDED]:   'Call ended',
   }[callState];
 
@@ -106,6 +120,7 @@ export default function App() {
             riskScore={riskScore}
             displayBand={displayBand}
             textVisible={textVisible}
+            cloneIsPlaying={cloneIsPlaying}
             onStart={startCall}
             onClone={playCloned}
             onReset={reset}
@@ -133,30 +148,30 @@ export default function App() {
   );
 }
 
-/* ── Left panel ──────────────────────────────────────────── */
-function LeftPanel({ callState, micError, riskScore, displayBand, textVisible, onStart, onClone, onReset }) {
+function LeftPanel({ callState, micError, riskScore, displayBand, textVisible, cloneIsPlaying, onStart, onClone, onReset }) {
   const isIdle   = callState === CALL_STATE.IDLE;
   const isInCall = callState === CALL_STATE.IN_CALL;
   const isEnded  = callState === CALL_STATE.ENDED;
 
   let analysisText;
-  if (micError)        analysisText = micError;
-  else if (isIdle)     analysisText = 'Waiting for call to start…';
-  else if (isEnded)    analysisText = 'Call ended. Analysis complete.';
-  else if (!isInCall)  analysisText = 'Connecting…';
-  else                 analysisText = BAND_TEXT[displayBand];
+  if (micError)       analysisText = micError;
+  else if (isIdle)    analysisText = 'Waiting for call to start…';
+  else if (isEnded)   analysisText = 'Call ended. Analysis complete.';
+  else if (!isInCall) analysisText = 'Connecting…';
+  else                analysisText = BAND_TEXT[displayBand];
 
   return (
     <div className="left-panel">
       <span className="panel-label">Controls</span>
 
       <button className="ctrl-btn start" onClick={onStart} disabled={!isIdle}>📞 Start Call</button>
-      <button className="ctrl-btn clone" onClick={onClone} disabled={!isInCall}>🎭 Play Cloned Sample</button>
+      <button className={`ctrl-btn clone${cloneIsPlaying ? ' clone-active' : ''}`} onClick={onClone} disabled={!isInCall || cloneIsPlaying}>
+        {cloneIsPlaying ? '⏵ Playing…' : '🎭 Play Cloned Sample'}
+      </button>
       <button className="ctrl-btn reset" onClick={onReset} disabled={isIdle}>↺ Reset</button>
 
       <div className="analysis-panel">
         <div className="panel-title">Live Analysis</div>
-        {/* Band indicator dots */}
         {isInCall && (
           <div className="band-dots">
             {BAND_TEXT.map((_, i) => (
@@ -177,7 +192,6 @@ function LeftPanel({ callState, micError, riskScore, displayBand, textVisible, o
   );
 }
 
-/* ── Right panel ─────────────────────────────────────────── */
 function RightPanel({ riskScore, confidence }) {
   return (
     <div className="right-panel">
