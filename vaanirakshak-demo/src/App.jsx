@@ -11,6 +11,8 @@ import { useAudio } from './useAudio';
 import { useRiskScore } from './useRiskScore';
 import { useClonedSample } from './useClonedSample';
 import IndiaMap from './IndiaMap';
+import RiskOverTimeChart from './RiskOverTimeChart';
+import WaveformComparison from './WaveformComparison';
 
 export const CALL_STATE = {
   IDLE:    'IDLE',
@@ -45,18 +47,41 @@ export default function App() {
   // Score override from cloned sample — null = use live
   const [scoreOverride, setScoreOverride] = useState(null);
 
+  // Score history for Step 9 chart
+  const [scoreHistory, setScoreHistory] = useState([]);
+  const [clonePlayed,  setClonePlayed]  = useState(false);
+
   const handleScoreOverride = useCallback((v) => setScoreOverride(v), []);
   const handleScoreClear    = useCallback(() => setScoreOverride(null), []);
 
-  const { play: playCloned, isPlaying: cloneIsPlaying } = useClonedSample({
+  const { play: triggerCloned, isPlaying: cloneIsPlaying } = useClonedSample({
     isInCall,
     onScoreOverride: handleScoreOverride,
     onScoreClear:    handleScoreClear,
   });
 
+  const playCloned = () => {
+    setClonePlayed(true);
+    triggerCloned();
+  };
+
   // Active scores: override wins when clip is playing
   const riskScore  = scoreOverride ? scoreOverride.riskScore  : liveRisk;
   const confidence = scoreOverride ? scoreOverride.confidence : liveConf;
+
+  // Track risk score over time while in call
+  useEffect(() => {
+    if (isInCall && riskScore > 0) {
+      setScoreHistory(prev => {
+        if (prev.length > 0 && prev[prev.length - 1].t === elapsed) {
+          const next = [...prev];
+          next[next.length - 1] = { t: elapsed, score: riskScore };
+          return next;
+        }
+        return [...prev, { t: elapsed, score: riskScore }];
+      });
+    }
+  }, [isInCall, elapsed, riskScore]);
 
   // Band / text fade logic
   const [displayBand, setDisplayBand] = useState(0);
@@ -86,7 +111,12 @@ export default function App() {
 
   const startCall  = () => setCallState(CALL_STATE.RINGING);
   const acceptCall = () => setCallState(CALL_STATE.IN_CALL);
-  const reset      = () => { setScoreOverride(null); setCallState(CALL_STATE.IDLE); };
+  const reset      = () => {
+    setScoreOverride(null);
+    setScoreHistory([]);
+    setClonePlayed(false);
+    setCallState(CALL_STATE.IDLE);
+  };
 
   const statusLabel = {
     [CALL_STATE.IDLE]:    'Idle — no active call',
@@ -162,18 +192,10 @@ export default function App() {
             </p>
           </div>
 
-          {/* Right: placeholder for Step 9 charts */}
+          {/* Right: Step 9 charts */}
           <div className="s2-charts-col">
-            <div className="chart-placeholder">
-              <span>📈</span>
-              <p>Risk-over-time graph</p>
-              <small>Populates during active call</small>
-            </div>
-            <div className="chart-placeholder">
-              <span>〰️</span>
-              <p>Waveform comparison</p>
-              <small>Available after cloned sample plays</small>
-            </div>
+            <RiskOverTimeChart history={scoreHistory} isLive={isInCall} />
+            <WaveformComparison analyser={analyser} clonePlayed={clonePlayed} />
           </div>
         </div>
       </section>

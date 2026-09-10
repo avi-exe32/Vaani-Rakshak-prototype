@@ -757,18 +757,118 @@
   gap: 16px;
 }
 
-.chart-placeholder {
+/* Step 9 Chart Card */
+.chart-card {
   flex: 1;
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 14px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: var(--text-muted);
-  font-size: 0.8rem;
+  justify-content: space-between;
+  gap: 12px;
 }
-.chart-placeholder span { font-size: 2rem; opacity: 0.4; }
-.chart-placeholder small { font-size: 0.65rem; color: var(--text-muted); opacity: 0.7; }
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chart-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.live-pill {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--accent-green);
+  background: rgba(34,197,94,0.15);
+  border: 1px solid rgba(34,197,94,0.3);
+  padding: 1px 6px;
+  border-radius: 10px;
+  letter-spacing: 0.08em;
+  animation: pulse-live 1.5s infinite;
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.chart-meta {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.chart-svg-wrap {
+  width: 100%;
+  height: 150px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.03);
+  overflow: hidden;
+}
+
+.chart-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Waveform comparison */
+.wave-compare-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wave-track {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.track-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+
+.tag-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.tag-indicator.green { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+.tag-indicator.purple { background: #a78bfa; box-shadow: 0 0 6px #a78bfa; }
+
+.track-pending {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  font-style: italic;
+}
+
+.track-canvas {
+  width: 100%;
+  height: 42px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: block;
+}
+
