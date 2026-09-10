@@ -54,7 +54,7 @@ export default function App() {
   const handleScoreOverride = useCallback((v) => setScoreOverride(v), []);
   const handleScoreClear    = useCallback(() => setScoreOverride(null), []);
 
-  const { play: triggerCloned, isPlaying: cloneIsPlaying } = useClonedSample({
+  const { play: triggerCloned, isPlaying: cloneIsPlaying, cloneAnalyser } = useClonedSample({
     isInCall,
     onScoreOverride: handleScoreOverride,
     onScoreClear:    handleScoreClear,
@@ -195,7 +195,12 @@ export default function App() {
           {/* Right: Step 9 charts */}
           <div className="s2-charts-col">
             <RiskOverTimeChart history={scoreHistory} isLive={isInCall} />
-            <WaveformComparison analyser={analyser} clonePlayed={clonePlayed} />
+            <WaveformComparison
+              analyser={analyser}
+              cloneAnalyser={cloneAnalyser}
+              cloneIsPlaying={cloneIsPlaying}
+              clonePlayed={clonePlayed}
+            />
           </div>
         </div>
       </section>

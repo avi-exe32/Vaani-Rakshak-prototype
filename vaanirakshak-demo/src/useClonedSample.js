@@ -1,7 +1,7 @@
 /**
- * useClonedSample.js — Step 6
+ * useClonedSample.js — Step 6 & 9
  * Manages playback of the cloned audio + steps through precomputed score sequence.
- * While playing, overrides the live /analyze polling with the sequence values.
+ * Connects Web Audio AnalyserNode for frequency analysis (spectrogram).
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 
@@ -9,12 +9,16 @@ const SCORES_URL = '/cloned_scores.json';
 const AUDIO_URL  = '/audio/cloned_sample.mp3';
 
 export function useClonedSample({ isInCall, onScoreOverride, onScoreClear }) {
-  const [isPlaying,  setIsPlaying]  = useState(false);
-  const [loadError,  setLoadError]  = useState(null);
+  const [isPlaying,     setIsPlaying]     = useState(false);
+  const [cloneAnalyser, setCloneAnalyser] = useState(null);
+  const [loadError,     setLoadError]     = useState(null);
 
-  const audioRef    = useRef(null);
-  const scoresRef   = useRef(null);
-  const timeoutsRef = useRef([]);
+  const audioRef         = useRef(null);
+  const audioCtxRef      = useRef(null);
+  const cloneAnalyserRef = useRef(null);
+  const sourceNodeRef    = useRef(null);
+  const scoresRef        = useRef(null);
+  const timeoutsRef      = useRef([]);
 
   // Pre-load scores JSON once
   useEffect(() => {
@@ -46,22 +50,48 @@ export function useClonedSample({ isInCall, onScoreOverride, onScoreClear }) {
     const scores = scoresRef.current;
     if (!scores) { console.warn('[VaaniRakshak] score sequence not loaded yet'); return; }
 
-    // Create / reuse audio element
+    // Create / reuse audio element + Web Audio Analyser
     if (!audioRef.current) {
-      audioRef.current = new Audio(AUDIO_URL);
-      audioRef.current.onerror = () => {
-        // Audio file missing — still run the score sequence (score demo still works)
-        console.warn('[VaaniRakshak] cloned_sample.mp3 not found — running score sequence only');
+      const audio = new Audio(AUDIO_URL);
+      audio.crossOrigin = 'anonymous';
+
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 256;
+          analyser.smoothingTimeConstant = 0.75;
+          const source = ctx.createMediaElementSource(audio);
+          source.connect(analyser);
+          analyser.connect(ctx.destination);
+
+          audioCtxRef.current = ctx;
+          cloneAnalyserRef.current = analyser;
+          sourceNodeRef.current = source;
+          setCloneAnalyser(analyser);
+        }
+      } catch (err) {
+        console.warn('[VaaniRakshak] Could not create clone audio context:', err);
+      }
+
+      audio.onerror = () => {
+        console.warn('[VaaniRakshak] cloned_sample.mp3 failed to load — running score sequence only');
       };
+
+      audioRef.current = audio;
+    }
+
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume().catch(() => {});
     }
 
     audioRef.current.currentTime = 0;
-    audioRef.current.play().catch(() => {}); // ignore autoplay block
+    audioRef.current.play().catch(() => {});
 
     setIsPlaying(true);
 
-    // Schedule score overrides at each timestamp
-    const startedAt = performance.now();
+    // Schedule score overrides
     scores.forEach(({ t, risk_score, confidence }) => {
       const id = setTimeout(() => {
         onScoreOverride({ riskScore: risk_score, confidence });
@@ -69,7 +99,7 @@ export function useClonedSample({ isInCall, onScoreOverride, onScoreClear }) {
       timeoutsRef.current.push(id);
     });
 
-    // When clip ends (or last keyframe fires), return to live scoring
+    // When sequence finishes
     const lastT = scores[scores.length - 1].t;
     const endId = setTimeout(() => {
       setIsPlaying(false);
@@ -77,7 +107,6 @@ export function useClonedSample({ isInCall, onScoreOverride, onScoreClear }) {
     }, (lastT + 1.5) * 1000);
     timeoutsRef.current.push(endId);
 
-    // Also listen for natural audio end
     if (audioRef.current) {
       audioRef.current.onended = () => {
         timeoutsRef.current.forEach(clearTimeout);
@@ -88,5 +117,5 @@ export function useClonedSample({ isInCall, onScoreOverride, onScoreClear }) {
     }
   }, [isPlaying, isInCall, onScoreOverride, onScoreClear]);
 
-  return { play, stop, isPlaying, loadError };
+  return { play, stop, isPlaying, cloneAnalyser, loadError };
 }

@@ -1,13 +1,17 @@
 /**
- * IndiaMap.jsx — Step 8
- * India state-level choropleth shaded by fraud risk index.
- * Live jitter: every 4s each state nudges ±3 back toward its baseline.
+ * IndiaMap.jsx — Step 8 (Visual Polish Upgrade)
+ * India state-level choropleth with:
+ * - Continuous smooth color gradient (Teal -> Lime -> Yellow -> Orange -> Red)
+ * - Soft outer glow on high-risk states (>= 70)
+ * - Smooth 800ms transition on color changes
+ * - Modern horizontal gradient legend bar with ticks
+ * - Custom styled dark tooltip with large risk score & source badge
+ * - Subtle low-opacity border strokes & high-contrast dark backdrop
  */
 import { useState, useEffect } from 'react';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 
 // ── Baseline fraud risk per state (0-100) ─────────────────
-// Source: I4C / NHRC 2025 cyber-fraud data (approximated)
 const BASELINE = {
   'Rajasthan':          82,
   'Uttar Pradesh':      78,
@@ -50,12 +54,35 @@ const BASELINE = {
   'Lakshadweep':        14,
 };
 
-function riskColor(value) {
-  if (value >= 75) return '#ef4444';
-  if (value >= 60) return '#f97316';
-  if (value >= 45) return '#eab308';
-  if (value >= 30) return '#84cc16';
-  return '#22c55e';
+// ── Continuous Color Gradient (Teal -> Lime -> Yellow -> Orange -> Deep Red) ──
+const STOPS = [
+  { val: 0,   r: 5,   g: 150, b: 105 }, // #059669 Teal/Green
+  { val: 35,  r: 132, g: 204, b: 22 },  // #84cc16 Lime
+  { val: 55,  r: 234, g: 179, b: 8 },   // #eab308 Yellow
+  { val: 75,  r: 249, g: 115, b: 22 },  // #f97316 Orange
+  { val: 100, r: 220, g: 38,  b: 38 },  // #dc2626 Deep Red
+];
+
+function continuousRiskColor(value) {
+  const clamped = Math.max(0, Math.min(100, value));
+  let lower = STOPS[0];
+  let upper = STOPS[STOPS.length - 1];
+
+  for (let i = 0; i < STOPS.length - 1; i++) {
+    if (clamped >= STOPS[i].val && clamped <= STOPS[i + 1].val) {
+      lower = STOPS[i];
+      upper = STOPS[i + 1];
+      break;
+    }
+  }
+
+  const range = upper.val - lower.val;
+  const factor = range === 0 ? 0 : (clamped - lower.val) / range;
+  const r = Math.round(lower.r + factor * (upper.r - lower.r));
+  const g = Math.round(lower.g + factor * (upper.g - lower.g));
+  const b = Math.round(lower.b + factor * (upper.b - lower.b));
+
+  return `rgb(${r},${g},${b})`;
 }
 
 export default function IndiaMap() {
@@ -103,10 +130,10 @@ export default function IndiaMap() {
   }
 
   return (
-    <div className="india-map-wrap">
+    <div className="india-map-wrap refined-map">
       {loading ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#a78bfa' }}>
-          <span>Loading Map Data…</span>
+        <div className="map-loader">
+          <span>Loading Map Intelligence…</span>
         </div>
       ) : geoData ? (
         <ComposableMap
@@ -118,18 +145,32 @@ export default function IndiaMap() {
             {({ geographies }) =>
               geographies.map(geo => {
                 const name  = geo.properties.st_nm || geo.properties.ST_NM || geo.properties.NAME_1 || geo.properties.name || '';
-                const value = scores[name] ?? 30;
+                const value = Math.round(scores[name] ?? 30);
+                const isHighRisk = value >= 70;
+                const fillColor = continuousRiskColor(value);
+
                 return (
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
-                    fill={riskColor(value)}
-                    stroke="#0a0e14"
-                    strokeWidth={0.5}
+                    fill={fillColor}
+                    stroke="rgba(15, 23, 42, 0.75)"
+                    strokeWidth={0.6}
                     style={{
-                      default:  { outline: 'none', opacity: 0.88 },
-                      hover:    { outline: 'none', opacity: 1, filter: 'brightness(1.25)', cursor: 'pointer' },
-                      pressed:  { outline: 'none' },
+                      default: {
+                        outline: 'none',
+                        transition: 'fill 0.8s ease, filter 0.8s ease, opacity 0.3s ease',
+                        filter: isHighRisk ? 'drop-shadow(0px 0px 7px rgba(239, 68, 68, 0.7))' : 'none',
+                        opacity: 0.92,
+                      },
+                      hover: {
+                        outline: 'none',
+                        filter: 'brightness(1.22) drop-shadow(0px 0px 9px rgba(255, 255, 255, 0.4))',
+                        opacity: 1,
+                        cursor: 'pointer',
+                        transition: 'filter 0.2s ease',
+                      },
+                      pressed: { outline: 'none' },
                     }}
                     onMouseMove={e => handleMove(geo, e)}
                     onMouseLeave={() => setTooltip(null)}
@@ -143,31 +184,42 @@ export default function IndiaMap() {
         <div style={{ padding: 20, color: '#f87171' }}>Failed to load map data.</div>
       )}
 
-      {/* Hover tooltip */}
+      {/* Styled Modern Tooltip */}
       {tooltip && (
         <div
-          className="map-tooltip"
-          style={{ left: tooltip.x + 12, top: tooltip.y - 36 }}
+          className="map-tooltip-modern"
+          style={{ left: tooltip.x + 14, top: tooltip.y - 48 }}
         >
-          <strong>{tooltip.name}</strong>
-          <span>Risk Index: {tooltip.value}</span>
+          <div className="tooltip-top-row">
+            <span className="tooltip-state-name">{tooltip.name}</span>
+            <span
+              className="tooltip-score-badge"
+              style={{
+                color: continuousRiskColor(tooltip.value),
+                borderColor: continuousRiskColor(tooltip.value),
+              }}
+            >
+              {tooltip.value}
+            </span>
+          </div>
+          <div className="tooltip-label">Impersonation Fraud Index</div>
+          <div className="tooltip-source">Baseline Source: I4C / NHRC 2025</div>
         </div>
       )}
 
-      {/* Legend */}
-      <div className="map-legend">
-        {[
-          { color: '#22c55e', label: 'Low (<30)' },
-          { color: '#84cc16', label: '30–44' },
-          { color: '#eab308', label: '45–59' },
-          { color: '#f97316', label: '60–74' },
-          { color: '#ef4444', label: 'High (75+)' },
-        ].map(({ color, label }) => (
-          <div key={label} className="legend-item">
-            <div className="legend-swatch" style={{ background: color }} />
-            <span>{label}</span>
+      {/* Modern Gradient Bar Legend */}
+      <div className="map-gradient-legend">
+        <div className="legend-gradient-title">Fraud Risk Index</div>
+        <div className="legend-bar-wrapper">
+          <div className="legend-gradient-bar" />
+          <div className="legend-ticks">
+            <span>0</span>
+            <span>25</span>
+            <span>50</span>
+            <span>75</span>
+            <span>100</span>
           </div>
-        ))}
+        </div>
       </div>
     </div>
   );

@@ -1,129 +1,175 @@
 /**
- * WaveformComparison.jsx — Step 9
- * Compares live voice audio stream against synthetic cloned sample signature.
+ * WaveformComparison.jsx — Step 9 (Spectrogram Upgrade)
+ * Renders real scrolling spectrograms for both the live microphone stream
+ * and the synthetic cloned voice sample using getByteFrequencyData().
  */
 import { useEffect, useRef } from 'react';
 
-export default function WaveformComparison({ analyser, clonePlayed = false }) {
-  const liveCanvasRef  = useRef(null);
-  const cloneCanvasRef = useRef(null);
-  const rafRef         = useRef(null);
+// ── Perceptual Colormap LUT (Inferno / Viridis inspired) ────
+const COLOR_LUT = new Array(256);
+(function initLUT() {
+  const STOPS = [
+    { pos: 0,   r: 8,   g: 12,  b: 20 },  // Deep dark navy
+    { pos: 35,  r: 49,  g: 46,  b: 129 }, // Indigo
+    { pos: 80,  r: 14,  g: 165, b: 233 }, // Cyan
+    { pos: 130, r: 16,  g: 185, b: 129 }, // Emerald green
+    { pos: 180, r: 234, g: 179, b: 8 },   // Amber yellow
+    { pos: 220, r: 249, g: 115, b: 22 },  // Orange
+    { pos: 255, r: 239, g: 68,  b: 68 },  // Red peak
+  ];
 
-  // Animate live mic stream
-  useEffect(() => {
-    const canvas = liveCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const W = canvas.width;
-    const H = canvas.height;
-
-    if (!analyser) {
-      // flat baseline
-      ctx.clearRect(0, 0, W, H);
-      ctx.strokeStyle = 'rgba(34,197,94,0.3)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(0, H / 2);
-      ctx.lineTo(W, H / 2);
-      ctx.stroke();
-      return;
-    }
-
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray    = new Uint8Array(bufferLength);
-
-    function render() {
-      rafRef.current = requestAnimationFrame(render);
-      analyser.getByteTimeDomainData(dataArray);
-
-      ctx.clearRect(0, 0, W, H);
-      ctx.lineWidth   = 1.8;
-      ctx.strokeStyle = '#22c55e';
-      ctx.beginPath();
-
-      const sliceWidth = W / bufferLength;
-      let x = 0;
-      for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = (v * H) / 2;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-        x += sliceWidth;
+  for (let i = 0; i < 256; i++) {
+    let lower = STOPS[0];
+    let upper = STOPS[STOPS.length - 1];
+    for (let s = 0; s < STOPS.length - 1; s++) {
+      if (i >= STOPS[s].pos && i <= STOPS[s + 1].pos) {
+        lower = STOPS[s];
+        upper = STOPS[s + 1];
+        break;
       }
-      ctx.lineTo(W, H / 2);
-      ctx.stroke();
     }
+    const range = upper.pos - lower.pos;
+    const factor = range === 0 ? 0 : (i - lower.pos) / range;
+    const r = Math.round(lower.r + factor * (upper.r - lower.r));
+    const g = Math.round(lower.g + factor * (upper.g - lower.g));
+    const b = Math.round(lower.b + factor * (upper.b - lower.b));
+    COLOR_LUT[i] = `rgb(${r},${g},${b})`;
+  }
+})();
 
-    render();
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [analyser]);
+function SpectrogramTrack({ analyser, isActive = true, preserveOnStop = false, placeholderText = '' }) {
+  const canvasRef = useRef(null);
+  const rafRef    = useRef(null);
+  const dataRef   = useRef(null);
 
-  // Render static/precomputed synthetic pattern once clone has been played
   useEffect(() => {
-    const canvas = cloneCanvasRef.current;
+    const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const W = canvas.width;
     const H = canvas.height;
 
-    ctx.clearRect(0, 0, W, H);
-
-    if (!clonePlayed) {
-      // Empty state
-      ctx.strokeStyle = 'rgba(167,139,250,0.2)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(0, H / 2);
-      ctx.lineTo(W, H / 2);
-      ctx.stroke();
+    // If analyser not present and we shouldn't preserve previous image
+    if (!analyser) {
+      if (!preserveOnStop) {
+        ctx.fillStyle = '#080c14';
+        ctx.fillRect(0, 0, W, H);
+      }
       return;
     }
 
-    // High frequency synthetic signature wave with characteristic harmonics
-    ctx.lineWidth = 1.8;
-    ctx.strokeStyle = '#a78bfa';
-    ctx.shadowColor = '#a78bfa';
-    ctx.shadowBlur = 4;
-    ctx.beginPath();
-
-    const points = 180;
-    for (let i = 0; i < points; i++) {
-      const x = (i / points) * W;
-      const freq1 = Math.sin((i / 8) * Math.PI) * (H * 0.28);
-      const freq2 = Math.sin((i / 3) * Math.PI) * (H * 0.12);
-      const y = H / 2 + freq1 + freq2;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+    const binCount = analyser.frequencyBinCount; // e.g. 128 bins
+    if (!dataRef.current || dataRef.current.length !== binCount) {
+      dataRef.current = new Uint8Array(binCount);
     }
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-  }, [clonePlayed]);
+    const freqData = dataRef.current;
 
+    // Use lower ~70% of frequency spectrum where vocal formants reside
+    const usableBins = Math.floor(binCount * 0.7);
+
+    function step() {
+      if (!isActive && preserveOnStop) {
+        // Keep the last frozen frame without scrolling
+        return;
+      }
+
+      rafRef.current = requestAnimationFrame(step);
+      analyser.getByteFrequencyData(freqData);
+
+      // 1. Shift canvas content left by 2 pixels
+      ctx.drawImage(canvas, -2, 0);
+
+      // 2. Draw the new 2px column on the right edge
+      const colX = W - 2;
+      const binH = H / usableBins;
+
+      for (let i = 0; i < usableBins; i++) {
+        // Low frequencies at bottom (y = H), high at top (y = 0)
+        const y = H - (i + 1) * binH;
+        const energy = freqData[i];
+        ctx.fillStyle = COLOR_LUT[energy];
+        ctx.fillRect(colX, y, 2, Math.ceil(binH));
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(step);
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [analyser, isActive, preserveOnStop]);
+
+  return (
+    <div className="spectrogram-canvas-wrap">
+      <canvas
+        ref={canvasRef}
+        width={380}
+        height={56}
+        className="spectrogram-canvas"
+      />
+      {placeholderText && (
+        <div className="spectrogram-placeholder-overlay">
+          <span>{placeholderText}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function WaveformComparison({
+  analyser,
+  cloneAnalyser,
+  cloneIsPlaying = false,
+  clonePlayed = false
+}) {
   return (
     <div className="chart-card">
       <div className="chart-header">
-        <span className="chart-title">Acoustic Signature Comparison</span>
-        <span className="chart-meta">Spectrographic Trace</span>
+        <div className="chart-title-wrap">
+          <span className="chart-title">Acoustic Signature Spectrogram</span>
+          <span className="live-pill" style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', borderColor: 'rgba(167,139,250,0.3)' }}>
+            SPECTROGRAPHIC
+          </span>
+        </div>
+        <div className="spectrogram-scale-legend">
+          <span className="scale-label">0 dB</span>
+          <div className="scale-gradient" />
+          <span className="scale-label">Peak</span>
+        </div>
       </div>
 
       <div className="wave-compare-body">
-        {/* Track 1: Live Voice */}
+        {/* Track 1: Live Voice Spectrogram */}
         <div className="wave-track">
           <div className="track-tag live">
             <div className="tag-indicator green" />
-            <span>Live Microphone (Human Baseline)</span>
+            <span>Live Microphone (Continuous Formants)</span>
           </div>
-          <canvas ref={liveCanvasRef} width={380} height={42} className="track-canvas" />
+          <SpectrogramTrack
+            analyser={analyser}
+            isActive={true}
+            preserveOnStop={false}
+          />
         </div>
 
-        {/* Track 2: Cloned Sample */}
+        {/* Track 2: Synthetic Cloned Sample Spectrogram */}
         <div className="wave-track">
           <div className="track-tag clone">
             <div className="tag-indicator purple" />
             <span>Synthetic Voice Signature (Cloned Sample)</span>
-            {!clonePlayed && <span className="track-pending">Click &quot;Play Cloned Sample&quot; to test</span>}
+            {!clonePlayed && (
+              <span className="track-pending">Click &quot;Play Cloned Sample&quot; to inspect</span>
+            )}
+            {clonePlayed && !cloneIsPlaying && (
+              <span className="track-pending" style={{ color: '#a78bfa' }}>Captured Signature (Frozen)</span>
+            )}
           </div>
-          <canvas ref={cloneCanvasRef} width={380} height={42} className="track-canvas" />
+          <SpectrogramTrack
+            analyser={cloneAnalyser}
+            isActive={cloneIsPlaying}
+            preserveOnStop={true}
+            placeholderText={!clonePlayed ? 'Waiting for cloned sample playback…' : ''}
+          />
         </div>
       </div>
     </div>
