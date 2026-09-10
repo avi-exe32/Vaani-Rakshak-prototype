@@ -3,10 +3,8 @@
  * India state-level choropleth shaded by fraud risk index.
  * Live jitter: every 4s each state nudges ±3 back toward its baseline.
  */
-import { useState, useEffect, useRef } from 'react';
-import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
-
-const GEO_URL = '/india-states.json';
+import { useState, useEffect } from 'react';
+import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 
 // ── Baseline fraud risk per state (0-100) ─────────────────
 // Source: I4C / NHRC 2025 cyber-fraud data (approximated)
@@ -61,8 +59,24 @@ function riskColor(value) {
 }
 
 export default function IndiaMap() {
-  const [scores, setScores] = useState({ ...BASELINE });
+  const [geoData, setGeoData] = useState(null);
+  const [scores, setScores]   = useState({ ...BASELINE });
   const [tooltip, setTooltip] = useState(null); // { name, value, x, y }
+  const [loading, setLoading] = useState(true);
+
+  // Load geojson directly
+  useEffect(() => {
+    fetch('/india-states.json')
+      .then(res => res.json())
+      .then(data => {
+        setGeoData(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to load map data:', err);
+        setLoading(false);
+      });
+  }, []);
 
   // Jitter effect — nudge each state ±3 toward baseline every 4s
   useEffect(() => {
@@ -90,13 +104,17 @@ export default function IndiaMap() {
 
   return (
     <div className="india-map-wrap">
-      <ComposableMap
-        projection="geoMercator"
-        projectionConfig={{ center: [80, 22], scale: 1000 }}
-        style={{ width: '100%', height: '100%' }}
-      >
-        <ZoomableGroup zoom={1}>
-          <Geographies geography={GEO_URL}>
+      {loading ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#a78bfa' }}>
+          <span>Loading Map Data…</span>
+        </div>
+      ) : geoData ? (
+        <ComposableMap
+          projection="geoMercator"
+          projectionConfig={{ center: [82.5, 21.5], scale: 950 }}
+          style={{ width: '100%', height: '100%' }}
+        >
+          <Geographies geography={geoData}>
             {({ geographies }) =>
               geographies.map(geo => {
                 const name  = geo.properties.st_nm || geo.properties.ST_NM || geo.properties.NAME_1 || geo.properties.name || '';
@@ -109,8 +127,8 @@ export default function IndiaMap() {
                     stroke="#0a0e14"
                     strokeWidth={0.5}
                     style={{
-                      default:  { outline: 'none', opacity: 0.85 },
-                      hover:    { outline: 'none', opacity: 1, filter: 'brightness(1.25)' },
+                      default:  { outline: 'none', opacity: 0.88 },
+                      hover:    { outline: 'none', opacity: 1, filter: 'brightness(1.25)', cursor: 'pointer' },
                       pressed:  { outline: 'none' },
                     }}
                     onMouseMove={e => handleMove(geo, e)}
@@ -120,8 +138,10 @@ export default function IndiaMap() {
               })
             }
           </Geographies>
-        </ZoomableGroup>
-      </ComposableMap>
+        </ComposableMap>
+      ) : (
+        <div style={{ padding: 20, color: '#f87171' }}>Failed to load map data.</div>
+      )}
 
       {/* Hover tooltip */}
       {tooltip && (
